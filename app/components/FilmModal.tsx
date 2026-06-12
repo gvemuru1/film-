@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MasonryItem } from './Masonry';
 
 interface Props {
@@ -14,7 +14,16 @@ export default function FilmModal({ items, initialIndex, onClose }: Props) {
   const [index, setIndex]     = useState(initialIndex);
   const [fading, setFading]   = useState(false);
 
-  const item = items[index];
+  const item       = items[index];
+  const closing    = useRef(false);
+
+  const close = () => {
+    if (closing.current) return;
+    closing.current = true;
+    setVisible(false);
+    history.back();           // pop the entry we pushed on open
+    setTimeout(onClose, 250);
+  };
 
   const navigate = (dir: 1 | -1) => {
     const next = index + dir;
@@ -22,6 +31,21 @@ export default function FilmModal({ items, initialIndex, onClose }: Props) {
     setFading(true);
     setTimeout(() => { setIndex(next); setFading(false); }, 150);
   };
+
+  // Push history entry on open so back button closes the modal
+  useEffect(() => {
+    history.pushState({ modal: true }, '');
+
+    const onPop = () => {
+      if (closing.current) return;
+      closing.current = true;
+      setVisible(false);
+      setTimeout(onClose, 250);
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
@@ -39,11 +63,6 @@ export default function FilmModal({ items, initialIndex, onClose }: Props) {
       document.body.style.overflow = '';
     };
   }, [index]);
-
-  const close = () => {
-    setVisible(false);
-    setTimeout(onClose, 250);
-  };
 
   return (
     <div

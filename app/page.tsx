@@ -34,7 +34,13 @@ function HomeContent() {
 export default function Home() {
   return (
     <main className="flex-1 w-full px-4 py-4">
-      <Suspense>
+      <Suspense fallback={
+        <div className="fixed inset-0 flex items-end justify-end p-8 pointer-events-none">
+          <span className="text-[12vw] font-extralight tracking-tighter text-black/10 leading-none select-none">
+            loading...
+          </span>
+        </div>
+      }>
         <HomeContent />
       </Suspense>
     </main>
