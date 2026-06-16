@@ -3,8 +3,14 @@
 import { useState } from 'react';
 import Masonry from './Masonry';
 import FilmModal from './FilmModal';
-import type { Album } from '../lib/films';
 import type { MasonryItem } from './Masonry';
+
+interface Album {
+  id: string;
+  title: string;
+  description: string;
+  films: MasonryItem[];
+}
 
 interface Props {
   album: Album;

@@ -28,9 +28,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     [
       album_id,
       title ?? '',
-      description ?? null,
-      stock ?? null,
-      year ?? null,
+      description ?? '',
+      stock ?? '',
+      year ?? 0,
       image_key,
       height ?? 320,
       display_order ?? 0,
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   // Auto-set first photo as album cover
   await query(
     `UPDATE albums SET cover_key = $1
-     WHERE id = $2 AND cover_key IS NULL`,
+     WHERE id = $2 AND cover_key = ''`,
     [image_key, album_id]
   );
 

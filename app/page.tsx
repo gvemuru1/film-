@@ -1,37 +1,36 @@
-'use client';
-
 import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import AlbumSection from './components/AlbumSection';
-import { albums } from './lib/films';
+import { query } from './lib/db';
+import HomeContent from './components/HomeContent';
 
-function HomeContent() {
-  const params = useSearchParams();
-  const stock  = params.get('stock') ?? '';
-
-  const visibleAlbums = albums
-    .map(album => ({
-      ...album,
-      filteredFilms: stock
-        ? album.films.filter(f => f.duration === stock)
-        : album.films,
-    }))
-    .filter(album => album.filteredFilms.length > 0);
-
-  return (
-    <div className="flex flex-col gap-0">
-      {visibleAlbums.map(album => (
-        <AlbumSection
-          key={album.id}
-          album={album}
-          filteredFilms={album.filteredFilms}
-        />
-      ))}
-    </div>
-  );
+async function getAlbums() {
+  return query(`
+    SELECT
+      a.id, a.title, a.description, a.cover_key, a.created_at,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id',            p.id,
+            'title',         p.title,
+            'description',   p.description,
+            'stock',         p.stock,
+            'year',          p.year,
+            'image_key',     p.image_key,
+            'height',        p.height,
+            'display_order', p.display_order
+          ) ORDER BY p.display_order, p.created_at
+        ) FILTER (WHERE p.id IS NOT NULL),
+        '[]'
+      ) AS photos
+    FROM albums a
+    LEFT JOIN photos p ON p.album_id = a.id
+    GROUP BY a.id
+    ORDER BY a.created_at ASC
+  `);
 }
 
-export default function Home() {
+export default async function Home() {
+  const albums = await getAlbums();
+
   return (
     <main className="flex-1 w-full px-4 py-4">
       <Suspense fallback={
@@ -41,7 +40,8 @@ export default function Home() {
           </span>
         </div>
       }>
-        <HomeContent />
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <HomeContent albums={albums as any} />
       </Suspense>
     </main>
   );
