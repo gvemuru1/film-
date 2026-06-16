@@ -1,0 +1,17 @@
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+});
+
+export async function query<T = Record<string, unknown>>(
+  text: string,
+  params?: unknown[]
+): Promise<T[]> {
+  const { rows } = await pool.query(text, params);
+  return rows as T[];
+}
+
+export default pool;
