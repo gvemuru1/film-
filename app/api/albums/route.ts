@@ -7,7 +7,7 @@ interface Photo {
   description: string | null;
   stock: string | null;
   year: number | null;
-  image_url: string;
+  image_key: string;
   height: number;
   display_order: number;
 }
@@ -24,7 +24,7 @@ interface AlbumRow {
 export async function GET() {
   const rows = await query<AlbumRow>(`
     SELECT
-      a.id, a.title, a.description, a.cover_url, a.created_at,
+      a.id, a.title, a.description, a.cover_key, a.created_at,
       COALESCE(
         json_agg(
           json_build_object(
@@ -33,7 +33,7 @@ export async function GET() {
             'description',   p.description,
             'stock',         p.stock,
             'year',          p.year,
-            'image_url',     p.image_url,
+            'image_key',     p.image_key,
             'height',        p.height,
             'display_order', p.display_order
           ) ORDER BY p.display_order, p.created_at

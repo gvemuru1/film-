@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
            'description',   p.description,
            'stock',         p.stock,
            'year',          p.year,
-           'image_url',     p.image_url,
+           'image_key',     p.image_key,
            'height',        p.height,
            'display_order', p.display_order
          ) ORDER BY p.display_order, p.created_at
