@@ -309,8 +309,15 @@ export default function AdminPage() {
   const [newTitle, setNewTitle]   = useState('');
   const [newDesc, setNewDesc]     = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number; pct: number } | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [stats, setStats] = useState<{ albums: number; photos: number; last_upload: string | null } | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => { if (r.ok) setAuthed(true); })
+      .finally(() => setMounted(true));
+  }, []);
 
   const fetchAlbums = useCallback(async () => {
     const data = await fetch('/api/albums').then(r => r.json());
@@ -322,6 +329,14 @@ export default function AdminPage() {
   }, [authed, fetchAlbums]);
 
   const activeAlbum = albums.find(a => a.id === activeId) ?? null;
+
+  const openStats = async () => {
+    setShowStats(v => !v);
+    if (!stats) {
+      const data = await fetch('/api/stats').then(r => r.json());
+      setStats(data);
+    }
+  };
 
   if (!mounted) return (
     <div className="min-h-screen flex items-end justify-end p-8 pointer-events-none">
@@ -355,22 +370,37 @@ export default function AdminPage() {
 
   // ── Photo mutations ──────────────────────────────────────────────────────────
 
+  function uploadToS3(url: string, file: File, onPct: (p: number) => void) {
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) onPct(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload  = () => xhr.status < 400 ? resolve() : reject(new Error(`S3 ${xhr.status}`));
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(file);
+    });
+  }
+
   const addPhotos = async (files: File[]) => {
     if (!activeAlbum) return;
     setUploading(true);
+    setUploadProgress({ done: 0, total: files.length, pct: 0 });
     try {
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
         const { presignedUrl, key } = await fetch('/api/upload/presign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentType: file.type }),
         }).then(r => r.json());
 
-        await fetch(presignedUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        });
+        await uploadToS3(presignedUrl, file, pct =>
+          setUploadProgress({ done: i, total: files.length, pct })
+        );
 
         await fetch(`/api/albums/${activeAlbum.id}/photos`, {
           method: 'POST',
@@ -381,10 +411,13 @@ export default function AdminPage() {
             height: 320,
           }),
         });
+
+        setUploadProgress({ done: i + 1, total: files.length, pct: 100 });
       }
       await fetchAlbums();
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -425,7 +458,16 @@ export default function AdminPage() {
               </>
             )}
           </div>
-          <Link href="/" className="text-[10px] uppercase tracking-widest text-black/35 hover:text-black transition-colors">← Back to Site</Link>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={openStats}
+              title="Stats for nerds"
+              className="text-xl text-black/20 hover:text-black/60 transition-colors font-mono"
+            >
+              ∿
+            </button>
+            <Link href="/" className="text-[10px] uppercase tracking-widest text-black/35 hover:text-black transition-colors">← Back to Site</Link>
+          </div>
         </div>
       </header>
 
@@ -490,8 +532,19 @@ export default function AdminPage() {
                   {activeAlbum.description} · {activeAlbum.photos.length} frames
                 </p>
               </div>
-              {uploading && (
-                <p className="text-[11px] text-black/40 font-light uppercase tracking-widest animate-pulse">Uploading...</p>
+              {uploadProgress && (
+                <div className="flex flex-col items-end gap-1 min-w-40">
+                  <div className="flex justify-between w-full text-[10px] uppercase tracking-widest text-black/35 font-light">
+                    <span>{uploadProgress.done + 1} of {uploadProgress.total}</span>
+                    <span>{uploadProgress.pct}%</span>
+                  </div>
+                  <div className="w-full h-0.5 bg-black/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-black rounded-full transition-all duration-150"
+                      style={{ width: `${((uploadProgress.done / uploadProgress.total) * 100) + (uploadProgress.pct / uploadProgress.total)}%` }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
@@ -516,6 +569,50 @@ export default function AdminPage() {
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setEditing(null)} />
           <EditPanel photo={editing} onSave={savePhoto} onClose={() => setEditing(null)} />
         </>
+      )}
+
+      {/* Stats for nerds */}
+      {showStats && (
+        <div className="fixed bottom-6 right-6 z-50 w-72 bg-black text-green-400 rounded-xl font-mono text-[11px] shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10">
+            <span className="text-white/40 tracking-widest uppercase text-[10px]">stats for nerds</span>
+            <button onClick={() => setShowStats(false)} className="text-white/30 hover:text-white transition-colors">×</button>
+          </div>
+          <div className="px-4 py-4 flex flex-col gap-2.5">
+            {!stats ? (
+              <span className="text-green-400/50 animate-pulse">loading...</span>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-white/30">albums</span>
+                  <span>{stats.albums}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/30">photos</span>
+                  <span>{stats.photos}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/30">last upload</span>
+                  <span>{stats.last_upload ? new Date(stats.last_upload).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/30">stack</span>
+                  <span className="text-right text-[10px]">next · neon · s3</span>
+                </div>
+                <div className="mt-1 pt-2.5 border-t border-white/10">
+                  <a
+                    href="https://vercel.com/analytics"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-400/60 hover:text-green-400 transition-colors"
+                  >
+                    → vercel analytics ↗
+                  </a>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

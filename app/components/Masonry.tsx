@@ -90,7 +90,8 @@ interface CardProps {
 }
 
 function Card({ item, index, stagger, duration, ease, hoverScale, blurToFocus, onItemClick }: CardProps) {
-  const el = useRef<HTMLDivElement>(null);
+  const el      = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState(false);
 
   // Entrance animation — runs once on mount only, never re-fires
   useEffect(() => {
@@ -118,12 +119,16 @@ function Card({ item, index, stagger, duration, ease, hoverScale, blurToFocus, o
       onMouseEnter={() => gsap.to(el.current, { scale: hoverScale, duration: 0.3, ease: 'power2.out' })}
       onMouseLeave={() => gsap.to(el.current, { scale: 1,          duration: 0.3, ease: 'power2.out' })}
     >
+      {/* Shimmer — shows until image loads */}
+      {!loaded && <div className="shimmer absolute inset-0" />}
+
       <img
         src={item.img}
         alt={item.title}
         loading="lazy"
         decoding="async"
-        className="w-full h-full object-cover"
+        onLoad={() => setLoaded(true)}
+        className={`w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
       />
 
       {/* Netflix-style title overlay — only on hover */}
