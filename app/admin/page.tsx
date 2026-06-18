@@ -4,18 +4,6 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { getImageUrl } from '../lib/images';
 
-const STOCK_SUGGESTIONS = [
-  'Kodak Gold 200',
-  'Kodak Ultramax 400',
-  'Kodak Portra 400',
-  'Kodak Ektar 100',
-  'Fuji Superia 400',
-  'Fuji Pro 400H',
-  'CineStill 800T',
-  'CineStill 200',
-  'Ilford HP5 Plus',
-  'Ilford Delta 400',
-];
 
 interface DBPhoto {
   id: string;
@@ -173,15 +161,12 @@ function EditPanel({
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] uppercase tracking-widest text-black/35 font-light">Film Stock</label>
           <input
-            list="stock-suggestions"
-            placeholder="Type or pick a stock..."
+            type="text"
+            placeholder="e.g. Kodak Gold 200"
             className="border-b border-black/15 bg-transparent text-sm py-1 text-black font-light focus:outline-none focus:border-black transition-colors"
             value={form.stock}
             onChange={e => set('stock', e.target.value)}
           />
-          <datalist id="stock-suggestions">
-            {STOCK_SUGGESTIONS.map(s => <option key={s} value={s} />)}
-          </datalist>
         </div>
 
         <div className="flex flex-col gap-1.5">

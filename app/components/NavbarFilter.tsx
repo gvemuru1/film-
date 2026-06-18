@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { STOCKS } from '../lib/films';
+import { useEffect, useState } from 'react';
 
 export default function NavbarFilter() {
   const router   = useRouter();
@@ -9,10 +9,17 @@ export default function NavbarFilter() {
   const params   = useSearchParams();
   const stock    = params.get('stock') ?? '';
 
+  const [stocks, setStocks] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/stocks').then(r => r.json()).then(setStocks);
+  }, []);
+
   const handleChange = (value: string) => {
-    const target = pathname === '/' ? '/' : '/';
-    router.push(value ? `${target}?stock=${encodeURIComponent(value)}` : target);
+    router.push(value ? `/?stock=${encodeURIComponent(value)}` : '/');
   };
+
+  if (stocks.length === 0) return null;
 
   return (
     <div className="relative flex items-center gap-1.5">
@@ -23,7 +30,7 @@ export default function NavbarFilter() {
         className="appearance-none bg-transparent text-[11px] uppercase tracking-[0.18em] text-black/50 hover:text-black pr-4 pl-0 py-1 cursor-pointer focus:outline-none transition-colors"
       >
         <option value="">All Film</option>
-        {STOCKS.map(s => (
+        {stocks.map(s => (
           <option key={s} value={s}>{s}</option>
         ))}
       </select>
